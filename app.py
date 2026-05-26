@@ -1,19 +1,49 @@
 from flask import Flask, render_template_string, request
 import requests
-import random
+import sqlite3
 
 app = Flask(__name__)
 
-# =========================
+# =====================================
 # TELEGRAM
-# =========================
+# =====================================
 
 TOKEN = "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo"
 CHAT_ID = "7736448244"
 
-# =========================
-# HTML
-# =========================
+# =====================================
+# BASE DE DATOS
+# =====================================
+
+def crear_db():
+
+    conn = sqlite3.connect("soporte.db")
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+    CREATE TABLE IF NOT EXISTS tickets (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT,
+        telefono TEXT,
+        problema TEXT,
+        comentario TEXT,
+        estado TEXT
+
+    )
+
+    """)
+
+    conn.commit()
+    conn.close()
+
+crear_db()
+
+# =====================================
+# HTML PRINCIPAL
+# =====================================
 
 HTML = """
 
@@ -73,11 +103,29 @@ button:hover{
     background:#005fa3;
 }
 
-.estado{
+.ticket{
     background:#111827;
-    padding:20px;
+    padding:25px;
     border-radius:10px;
     margin-top:20px;
+}
+
+.orden{
+    color:#00BFFF;
+    font-size:40px;
+    font-weight:bold;
+}
+
+.estado{
+    color:orange;
+    font-size:28px;
+    font-weight:bold;
+}
+
+a{
+    color:#00BFFF;
+    text-decoration:none;
+    font-size:18px;
 }
 
 </style>
@@ -88,9 +136,11 @@ button:hover{
 
 <div class="container">
 
+{% if enviado == False %}
+
 <h1>Sistema Inteligente de Soporte Técnico</h1>
 
-<form method="POST" enctype="multipart/form-data">
+<form method="POST">
 
 <input
 type="text"
@@ -111,21 +161,13 @@ required
 <option value="">Seleccione una falla</option>
 
 <option>No enciende</option>
-
 <option>Pantalla azul</option>
-
 <option>Muy lenta</option>
-
 <option>Se apaga sola</option>
-
 <option>Sin internet</option>
-
 <option>No hay sonido</option>
-
 <option>Error de sistema</option>
-
 <option>Virus</option>
-
 <option>Otro</option>
 
 </select>
@@ -136,21 +178,29 @@ placeholder="Describa el problema"
 required
 ></textarea>
 
-<input type="file" name="archivo">
-
-<br><br>
-
 <button type="submit">
 Solicitar Soporte Técnico
 </button>
 
 </form>
 
-<div class="estado">
+{% endif %}
 
-<h2>{{ mensaje|safe }}</h2>
+{% if mensaje %}
+
+<div class="ticket">
+
+{{ mensaje|safe }}
 
 </div>
+
+{% endif %}
+
+<br><br>
+
+<a href="/consulta">
+Consultar Estado de Reparación
+</a>
 
 </div>
 
@@ -159,56 +209,173 @@ Solicitar Soporte Técnico
 
 """
 
-# =========================
-# RUTA PRINCIPAL
-# =========================
+# =====================================
+# HTML CONSULTA
+# =====================================
+
+CONSULTA_HTML = """
+
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Consultar Estado</title>
+
+<style>
+
+body{
+    background:#1e1e1e;
+    color:white;
+    font-family:Arial;
+    text-align:center;
+    padding:40px;
+}
+
+.container{
+    max-width:500px;
+    margin:auto;
+    background:#2b2b2b;
+    padding:30px;
+    border-radius:10px;
+}
+
+input{
+    width:90%;
+    padding:12px;
+    margin:10px;
+    border:none;
+    border-radius:5px;
+}
+
+button{
+    background:#0078D7;
+    color:white;
+    border:none;
+    padding:15px;
+    width:95%;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.ticket{
+    background:#111827;
+    padding:20px;
+    border-radius:10px;
+    margin-top:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Consultar Estado</h1>
+
+<form method="POST">
+
+<input
+type="number"
+name="orden"
+placeholder="Ingrese número de orden"
+required
+>
+
+<button type="submit">
+Consultar
+</button>
+
+</form>
+
+{{ resultado|safe }}
+
+</div>
+
+</body>
+</html>
+
+"""
+
+# =====================================
+# PAGINA PRINCIPAL
+# =====================================
 
 @app.route("/", methods=["GET", "POST"])
 def inicio():
 
     mensaje = ""
+    enviado = False
 
     if request.method == "POST":
+
+        enviado = True
 
         nombre = request.form["nombre"]
         telefono = request.form["telefono"]
         problema = request.form["problema"]
         comentario = request.form["comentario"]
 
-        archivo = request.files.get("archivo")
-
-        # GENERAR ORDEN
-        orden = random.randint(1000, 9999)
-
         estado = "PENDIENTE"
+
+        conn = sqlite3.connect("soporte.db")
+
+        cursor = conn.cursor()
+
+        cursor.execute("""
+
+        INSERT INTO tickets
+        (nombre, telefono, problema, comentario, estado)
+
+        VALUES (?, ?, ?, ?, ?)
+
+        """, (nombre, telefono, problema, comentario, estado))
+
+        conn.commit()
+
+        ticket_id = cursor.lastrowid
+
+        conn.close()
+
+        orden = f"{ticket_id:04d}"
 
         texto = f"""
 🔥 NUEVA FALLA REPORTADA
 
-📄 Orden:
+📄 ORDEN:
 #{orden}
 
-📌 Estado:
+📌 ESTADO:
 {estado}
 
-👤 Nombre:
+👤 CLIENTE:
 {nombre}
 
-📞 Teléfono:
+📞 TELÉFONO:
 {telefono}
 
-💻 Problema:
+💻 FALLA:
 {problema}
 
-📝 Comentario:
+📝 COMENTARIO:
 {comentario}
 
-📡 Un técnico se contactará contigo.
-"""
+======================
 
-        # =========================
-        # MENSAJE TELEGRAM
-        # =========================
+CAMBIAR ESTADO MANUAL:
+
+/estado {ticket_id} EN_REVISION
+
+/estado {ticket_id} REPARANDO
+
+/estado {ticket_id} LISTO
+
+/estado {ticket_id} ENTREGADO
+"""
 
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
@@ -219,62 +386,141 @@ def inicio():
 
         requests.post(url, data=data)
 
-        # =========================
-        # ENVIAR ARCHIVO
-        # =========================
-
-        if archivo and archivo.filename != "":
-
-            url_archivo = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
-
-            files = {
-                "document": (
-                    archivo.filename,
-                    archivo.stream,
-                    archivo.mimetype
-                )
-            }
-
-            data_archivo = {
-                "chat_id": CHAT_ID
-            }
-
-            requests.post(
-                url_archivo,
-                data=data_archivo,
-                files=files
-            )
-
         mensaje = f"""
 
-        ✅ REPORTE ENVIADO CORRECTAMENTE
+        <h2 style='color:#00ff88;'>
+        ✅ REPORTE ENVIADO
+        </h2>
 
-        <br><br>
+        <hr>
 
-        📄 Número de Orden:
+        <h3>
+        Número de Orden
+        </h3>
+
+        <div class='orden'>
+        #{orden}
+        </div>
+
         <br>
-        <b>#{orden}</b>
 
-        <br><br>
+        <h3>
+        Estado de Reparación
+        </h3>
 
-        📌 Estado de la Orden:
+        <div class='estado'>
+        {estado}
+        </div>
+
         <br>
-        <b>{estado}</b>
 
-        <br><br>
-
-        📡 Un técnico se contactará contigo.
+        <p>
+        Use este número para consultar el estado.
+        </p>
 
         """
 
     return render_template_string(
         HTML,
-        mensaje=mensaje
+        mensaje=mensaje,
+        enviado=enviado
     )
 
-# =========================
+# =====================================
+# CONSULTAR ESTADO
+# =====================================
+
+@app.route("/consulta", methods=["GET", "POST"])
+def consulta():
+
+    resultado = ""
+
+    if request.method == "POST":
+
+        orden = request.form["orden"]
+
+        conn = sqlite3.connect("soporte.db")
+
+        cursor = conn.cursor()
+
+        cursor.execute("""
+
+        SELECT * FROM tickets
+        WHERE id = ?
+
+        """, (orden,))
+
+        ticket = cursor.fetchone()
+
+        conn.close()
+
+        if ticket:
+
+            resultado = f"""
+
+            <div class='ticket'>
+
+            <h2>
+            Orden #{int(ticket[0]):04d}
+            </h2>
+
+            <h1 style='color:#00BFFF;'>
+            {ticket[5]}
+            </h1>
+
+            </div>
+
+            """
+
+        else:
+
+            resultado = """
+
+            <div class='ticket'>
+
+            <h2 style='color:red;'>
+            ❌ Orden no encontrada
+            </h2>
+
+            </div>
+
+            """
+
+    return render_template_string(
+        CONSULTA_HTML,
+        resultado=resultado
+    )
+
+# =====================================
+# CAMBIAR ESTADO MANUAL
+# =====================================
+
+@app.route("/actualizar")
+def actualizar():
+
+    ticket = request.args.get("ticket")
+    estado = request.args.get("estado")
+
+    conn = sqlite3.connect("soporte.db")
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+    UPDATE tickets
+    SET estado = ?
+    WHERE id = ?
+
+    """, (estado, ticket))
+
+    conn.commit()
+    conn.close()
+
+    return f"Orden {ticket} actualizada a {estado}"
+
+# =====================================
 # INICIAR
-# =========================
+# =====================================
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
