@@ -1,5 +1,6 @@
 from flask import Flask, render_template_string, request
 import requests
+import random
 
 app = Flask(__name__)
 
@@ -72,6 +73,13 @@ button:hover{
     background:#005fa3;
 }
 
+.estado{
+    background:#111827;
+    padding:20px;
+    border-radius:10px;
+    margin-top:20px;
+}
+
 </style>
 
 </head>
@@ -138,7 +146,11 @@ Solicitar Soporte Técnico
 
 </form>
 
-<h2>{{ mensaje }}</h2>
+<div class="estado">
+
+<h2>{{ mensaje|safe }}</h2>
+
+</div>
 
 </div>
 
@@ -163,11 +175,21 @@ def inicio():
         problema = request.form["problema"]
         comentario = request.form["comentario"]
 
-        # CORRECCIÓN AQUÍ
         archivo = request.files.get("archivo")
+
+        # GENERAR ORDEN
+        orden = random.randint(1000, 9999)
+
+        estado = "PENDIENTE"
 
         texto = f"""
 🔥 NUEVA FALLA REPORTADA
+
+📄 Orden:
+#{orden}
+
+📌 Estado:
+{estado}
 
 👤 Nombre:
 {nombre}
@@ -201,7 +223,6 @@ def inicio():
         # ENVIAR ARCHIVO
         # =========================
 
-        # CORRECCIÓN AQUÍ
         if archivo and archivo.filename != "":
 
             url_archivo = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
@@ -224,7 +245,27 @@ def inicio():
                 files=files
             )
 
-        mensaje = "✅ Un técnico se contactará contigo."
+        mensaje = f"""
+
+        ✅ REPORTE ENVIADO CORRECTAMENTE
+
+        <br><br>
+
+        📄 Número de Orden:
+        <br>
+        <b>#{orden}</b>
+
+        <br><br>
+
+        📌 Estado de la Orden:
+        <br>
+        <b>{estado}</b>
+
+        <br><br>
+
+        📡 Un técnico se contactará contigo.
+
+        """
 
     return render_template_string(
         HTML,
