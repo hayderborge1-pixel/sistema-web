@@ -3,8 +3,16 @@ import requests
 
 app = Flask(__name__)
 
+# =========================
+# TELEGRAM
+# =========================
+
 TOKEN = "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo"
 CHAT_ID = "7736448244"
+
+# =========================
+# HTML
+# =========================
 
 HTML = """
 
@@ -42,6 +50,11 @@ input, select, textarea{
     border:none;
     border-radius:5px;
     font-size:16px;
+}
+
+textarea{
+    height:120px;
+    resize:none;
 }
 
 button{
@@ -101,6 +114,10 @@ required
 
 <option>No hay sonido</option>
 
+<option>Error de sistema</option>
+
+<option>Virus</option>
+
 <option>Otro</option>
 
 </select>
@@ -130,6 +147,10 @@ Solicitar Soporte Técnico
 
 """
 
+# =========================
+# RUTA PRINCIPAL
+# =========================
+
 @app.route("/", methods=["GET", "POST"])
 def inicio():
 
@@ -142,7 +163,8 @@ def inicio():
         problema = request.form["problema"]
         comentario = request.form["comentario"]
 
-        archivo = request.files["archivo"]
+        # CORRECCIÓN AQUÍ
+        archivo = request.files.get("archivo")
 
         texto = f"""
 🔥 NUEVA FALLA REPORTADA
@@ -162,7 +184,9 @@ def inicio():
 📡 Un técnico se contactará contigo.
 """
 
+        # =========================
         # MENSAJE TELEGRAM
+        # =========================
 
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
@@ -173,9 +197,12 @@ def inicio():
 
         requests.post(url, data=data)
 
+        # =========================
         # ENVIAR ARCHIVO
+        # =========================
 
-        if archivo.filename != "":
+        # CORRECCIÓN AQUÍ
+        if archivo and archivo.filename != "":
 
             url_archivo = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
 
@@ -203,6 +230,10 @@ def inicio():
         HTML,
         mensaje=mensaje
     )
+
+# =========================
+# INICIAR
+# =========================
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
