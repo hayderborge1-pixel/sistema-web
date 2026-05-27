@@ -150,11 +150,11 @@ required
 >
 
 <input
-type="tel"
+type="text"
 name="telefono"
 placeholder="Teléfono"
-pattern="[0-9]+"
-inputmode="numeric"
+maxlength="8"
+oninput="this.value=this.value.replace(/[^0-9]/g,'')"
 required
 >
 
