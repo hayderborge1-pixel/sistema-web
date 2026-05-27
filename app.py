@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, redirect, session
 import requests
 import sqlite3
 import telebot
@@ -7,6 +7,7 @@ import os
 import time
 
 app = Flask(__name__)
+app.secret_key = "soporte123"
 
 # =========================================
 # TELEGRAM
@@ -16,6 +17,13 @@ TOKEN = "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo"
 CHAT_ID = "7736448244"
 
 bot = telebot.TeleBot(TOKEN)
+
+# =========================================
+# LOGIN ADMIN
+# =========================================
+
+ADMIN_USER = "admin"
+ADMIN_PASS = "1234"
 
 # =========================================
 # BASE DE DATOS
@@ -205,6 +213,12 @@ Enviar Reporte
 Consultar Estado
 </a>
 
+<br><br>
+
+<a href="/login">
+Panel Técnico
+</a>
+
 </div>
 
 </body>
@@ -213,7 +227,185 @@ Consultar Estado
 """
 
 # =========================================
-# HTML CONSULTA
+# LOGIN HTML
+# =========================================
+
+LOGIN_HTML = """
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Login</title>
+
+<style>
+
+body{
+    background:#111827;
+    color:white;
+    font-family:Arial;
+    text-align:center;
+    padding:40px;
+}
+
+.container{
+    max-width:400px;
+    margin:auto;
+    background:#1f2937;
+    padding:30px;
+    border-radius:15px;
+}
+
+input{
+    width:90%;
+    padding:14px;
+    margin:10px;
+    border:none;
+    border-radius:8px;
+}
+
+button{
+    background:#0078D7;
+    color:white;
+    border:none;
+    padding:15px;
+    width:95%;
+    border-radius:8px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Login Técnico</h1>
+
+<form method="POST">
+
+<input type="text" name="usuario" placeholder="Usuario" required>
+
+<input type="password" name="password" placeholder="Contraseña" required>
+
+<button type="submit">
+Ingresar
+</button>
+
+</form>
+
+<p style="color:red;">
+{{ error }}
+</p>
+
+</div>
+
+</body>
+</html>
+
+"""
+
+# =========================================
+# PANEL ADMIN
+# =========================================
+
+PANEL_HTML = """
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Panel Técnico</title>
+
+<style>
+
+body{
+    background:#111827;
+    color:white;
+    font-family:Arial;
+    padding:20px;
+}
+
+.ticket{
+    background:#1f2937;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:15px;
+}
+
+select{
+    padding:10px;
+    border-radius:8px;
+}
+
+button{
+    background:#0078D7;
+    color:white;
+    border:none;
+    padding:10px;
+    border-radius:8px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Panel Técnico</h1>
+
+<a href="/logout" style="color:red;">Cerrar sesión</a>
+
+<br><br>
+
+{% for t in tickets %}
+
+<div class="ticket">
+
+<h2>Orden #{{ '%04d' % t[0] }}</h2>
+
+<p><b>Cliente:</b> {{ t[1] }}</p>
+
+<p><b>Teléfono:</b> {{ t[2] }}</p>
+
+<p><b>Problema:</b> {{ t[3] }}</p>
+
+<p><b>Comentario:</b> {{ t[4] }}</p>
+
+<p><b>Estado:</b> {{ t[5] }}</p>
+
+<form method="POST" action="/actualizar">
+
+<input type="hidden" name="id" value="{{ t[0] }}">
+
+<select name="estado">
+
+<option>PENDIENTE</option>
+<option>EN_REVISION</option>
+<option>REPARANDO</option>
+<option>LISTO</option>
+<option>ENTREGADO</option>
+
+</select>
+
+<button type="submit">
+Actualizar
+</button>
+
+</form>
+
+</div>
+
+{% endfor %}
+
+</body>
+</html>
+
+"""
+
+# =========================================
+# CONSULTA HTML
 # =========================================
 
 CONSULTA_HTML = """
@@ -222,8 +414,6 @@ CONSULTA_HTML = """
 <html>
 
 <head>
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Consulta</title>
 
@@ -304,6 +494,92 @@ Consultar
 """
 
 # =========================================
+# LOGIN
+# =========================================
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+
+    error = ""
+
+    if request.method == "POST":
+
+        usuario = request.form["usuario"]
+        password = request.form["password"]
+
+        if usuario == ADMIN_USER and password == ADMIN_PASS:
+
+            session["admin"] = True
+            return redirect("/panel")
+
+        else:
+
+            error = "Datos incorrectos"
+
+    return render_template_string(LOGIN_HTML, error=error)
+
+# =========================================
+# PANEL
+# =========================================
+
+@app.route("/panel")
+def panel():
+
+    if not session.get("admin"):
+        return redirect("/login")
+
+    conn = sqlite3.connect("soporte.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM tickets ORDER BY id DESC")
+
+    tickets = cursor.fetchall()
+
+    conn.close()
+
+    return render_template_string(
+        PANEL_HTML,
+        tickets=tickets
+    )
+
+# =========================================
+# ACTUALIZAR ESTADO
+# =========================================
+
+@app.route("/actualizar", methods=["POST"])
+def actualizar():
+
+    if not session.get("admin"):
+        return redirect("/login")
+
+    ticket_id = request.form["id"]
+    estado = request.form["estado"]
+
+    conn = sqlite3.connect("soporte.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE tickets SET estado=? WHERE id=?",
+        (estado, ticket_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/panel")
+
+# =========================================
+# LOGOUT
+# =========================================
+
+@app.route("/logout")
+def logout():
+
+    session.clear()
+
+    return redirect("/login")
+
+# =========================================
 # BOT TELEGRAM
 # =========================================
 
@@ -314,7 +590,7 @@ def cambiar_estado(message):
 
         datos = message.text.split()
 
-        ticket = datos[1]
+        ticket = int(datos[1])
         estado = datos[2]
 
         conn = sqlite3.connect("soporte.db")
@@ -327,26 +603,14 @@ def cambiar_estado(message):
         )
 
         conn.commit()
-
-        cambios = conn.total_changes
-
         conn.close()
 
-        if cambios > 0:
+        bot.reply_to(
+            message,
+            f"✅ Orden {ticket} actualizada"
+        )
 
-            bot.reply_to(
-                message,
-                f"✅ Orden {ticket} actualizada a {estado}"
-            )
-
-        else:
-
-            bot.reply_to(
-                message,
-                "❌ Orden no encontrada"
-            )
-
-    except Exception as e:
+    except:
 
         bot.reply_to(
             message,
@@ -409,18 +673,6 @@ def inicio():
 💻 {problema}
 
 📝 {comentario}
-
-==================
-
-CAMBIAR ESTADO:
-
-/estado {ticket_id} EN_REVISION
-
-/estado {ticket_id} REPARANDO
-
-/estado {ticket_id} LISTO
-
-/estado {ticket_id} ENTREGADO
 '''
 
         requests.post(
@@ -430,10 +682,6 @@ CAMBIAR ESTADO:
                 "text": texto
             }
         )
-
-        # =========================================
-        # ENVIAR ARCHIVO
-        # =========================================
 
         if archivo and archivo.filename != "":
 
