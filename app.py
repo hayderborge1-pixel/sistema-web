@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string, request
 import requests
 import sqlite3
+import os
 
 app = Flask(__name__)
 
@@ -15,9 +16,11 @@ CHAT_ID = "7736448244"
 # BASE DE DATOS
 # =====================================
 
+DB = "soporte.db"
+
 def crear_db():
 
-    conn = sqlite3.connect("soporte.db")
+    conn = sqlite3.connect(DB)
 
     cursor = conn.cursor()
 
@@ -42,7 +45,7 @@ def crear_db():
 crear_db()
 
 # =====================================
-# HTML PRINCIPAL
+# HTML
 # =====================================
 
 HTML = """
@@ -63,7 +66,7 @@ body{
     color:white;
     font-family:Arial;
     text-align:center;
-    padding:40px;
+    padding:30px;
 }
 
 .container{
@@ -112,13 +115,13 @@ button:hover{
 
 .orden{
     color:#00BFFF;
-    font-size:40px;
+    font-size:45px;
     font-weight:bold;
 }
 
 .estado{
     color:orange;
-    font-size:28px;
+    font-size:30px;
     font-weight:bold;
 }
 
@@ -140,7 +143,7 @@ a{
 
 <h1>Sistema Inteligente de Soporte Técnico</h1>
 
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
 
 <input
 type="text"
@@ -178,6 +181,10 @@ placeholder="Describa el problema"
 required
 ></textarea>
 
+<input type="file" name="archivo">
+
+<br><br>
+
 <button type="submit">
 Solicitar Soporte Técnico
 </button>
@@ -210,7 +217,7 @@ Consultar Estado de Reparación
 """
 
 # =====================================
-# HTML CONSULTA
+# CONSULTA HTML
 # =====================================
 
 CONSULTA_HTML = """
@@ -231,7 +238,7 @@ body{
     color:white;
     font-family:Arial;
     text-align:center;
-    padding:40px;
+    padding:30px;
 }
 
 .container{
@@ -257,7 +264,6 @@ button{
     padding:15px;
     width:95%;
     border-radius:5px;
-    cursor:pointer;
 }
 
 .ticket{
@@ -302,7 +308,7 @@ Consultar
 """
 
 # =====================================
-# PAGINA PRINCIPAL
+# INICIO
 # =====================================
 
 @app.route("/", methods=["GET", "POST"])
@@ -320,9 +326,11 @@ def inicio():
         problema = request.form["problema"]
         comentario = request.form["comentario"]
 
+        archivo = request.files.get("archivo")
+
         estado = "PENDIENTE"
 
-        conn = sqlite3.connect("soporte.db")
+        conn = sqlite3.connect(DB)
 
         cursor = conn.cursor()
 
@@ -343,17 +351,7 @@ def inicio():
 
         orden = f"{ticket_id:04d}"
 
-        # =====================================
-        # LINK DIRECTO PARA CAMBIAR ESTADO
-        # =====================================
-
-        link_revision = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=EN_REVISION"
-
-        link_reparando = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=REPARANDO"
-
-        link_listo = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=LISTO"
-
-        link_entregado = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=ENTREGADO"
+        base_url = request.host_url
 
         texto = f"""
 🔥 NUEVA FALLA REPORTADA
@@ -381,16 +379,16 @@ def inicio():
 CAMBIAR ESTADO:
 
 EN REVISION:
-{link_revision}
+{base_url}actualizar?ticket={ticket_id}&estado=EN_REVISION
 
 REPARANDO:
-{link_reparando}
+{base_url}actualizar?ticket={ticket_id}&estado=REPARANDO
 
 LISTO:
-{link_listo}
+{base_url}actualizar?ticket={ticket_id}&estado=LISTO
 
 ENTREGADO:
-{link_entregado}
+{base_url}actualizar?ticket={ticket_id}&estado=ENTREGADO
 """
 
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -401,6 +399,30 @@ ENTREGADO:
         }
 
         requests.post(url, data=data)
+
+        # ENVIAR ARCHIVO
+
+        if archivo and archivo.filename != "":
+
+            url_archivo = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
+
+            files = {
+                "document": (
+                    archivo.filename,
+                    archivo.stream,
+                    archivo.mimetype
+                )
+            }
+
+            data_archivo = {
+                "chat_id": CHAT_ID
+            }
+
+            requests.post(
+                url_archivo,
+                data=data_archivo,
+                files=files
+            )
 
         mensaje = f"""
 
@@ -421,18 +443,12 @@ ENTREGADO:
         <br>
 
         <h3>
-        Estado de Reparación
+        Estado Actual
         </h3>
 
         <div class='estado'>
         {estado}
         </div>
-
-        <br>
-
-        <p>
-        Use este número para consultar el estado.
-        </p>
 
         """
 
@@ -443,7 +459,7 @@ ENTREGADO:
     )
 
 # =====================================
-# CONSULTAR ESTADO
+# CONSULTA
 # =====================================
 
 @app.route("/consulta", methods=["GET", "POST"])
@@ -453,11 +469,9 @@ def consulta():
 
     if request.method == "POST":
 
-        orden = request.form["orden"]
+        orden = int(request.form["orden"])
 
-        ticket_id = int(orden)
-
-        conn = sqlite3.connect("soporte.db")
+        conn = sqlite3.connect(DB)
 
         cursor = conn.cursor()
 
@@ -466,7 +480,7 @@ def consulta():
         SELECT * FROM tickets
         WHERE id = ?
 
-        """, (ticket_id,))
+        """, (orden,))
 
         ticket = cursor.fetchone()
 
@@ -510,7 +524,7 @@ def consulta():
     )
 
 # =====================================
-# CAMBIAR ESTADO
+# ACTUALIZAR ESTADO
 # =====================================
 
 @app.route("/actualizar")
@@ -519,7 +533,7 @@ def actualizar():
     ticket = request.args.get("ticket")
     estado = request.args.get("estado")
 
-    conn = sqlite3.connect("soporte.db")
+    conn = sqlite3.connect(DB)
 
     cursor = conn.cursor()
 
@@ -539,12 +553,6 @@ def actualizar():
     <h1>
     ✅ Orden {int(ticket):04d} actualizada a {estado}
     </h1>
-
-    <br><br>
-
-    <a href="/consulta">
-    Consultar Estado
-    </a>
 
     """
 
