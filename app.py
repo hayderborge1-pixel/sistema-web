@@ -1,26 +1,19 @@
 from flask import Flask, render_template_string, request
 import requests
 import sqlite3
-import os
 
 app = Flask(__name__)
-
-# =====================================
-# TELEGRAM
-# =====================================
 
 TOKEN = "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo"
 CHAT_ID = "7736448244"
 
-# =====================================
+# =========================================
 # BASE DE DATOS
-# =====================================
-
-DB = "soporte.db"
+# =========================================
 
 def crear_db():
 
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect("soporte.db")
 
     cursor = conn.cursor()
 
@@ -44,9 +37,9 @@ def crear_db():
 
 crear_db()
 
-# =====================================
+# =========================================
 # HTML
-# =====================================
+# =========================================
 
 HTML = """
 
@@ -62,27 +55,27 @@ HTML = """
 <style>
 
 body{
-    background:#1e1e1e;
+    background:#111827;
     color:white;
     font-family:Arial;
     text-align:center;
-    padding:30px;
+    padding:40px;
 }
 
 .container{
     max-width:500px;
     margin:auto;
-    background:#2b2b2b;
+    background:#1f2937;
     padding:30px;
-    border-radius:10px;
+    border-radius:15px;
 }
 
 input, select, textarea{
     width:90%;
-    padding:12px;
+    padding:14px;
     margin:10px;
     border:none;
-    border-radius:5px;
+    border-radius:8px;
     font-size:16px;
 }
 
@@ -97,38 +90,32 @@ button{
     border:none;
     padding:15px;
     width:95%;
-    border-radius:5px;
+    border-radius:8px;
     font-size:16px;
     cursor:pointer;
 }
 
-button:hover{
-    background:#005fa3;
-}
-
 .ticket{
-    background:#111827;
+    background:#0f172a;
     padding:25px;
-    border-radius:10px;
-    margin-top:20px;
-}
-
-.orden{
-    color:#00BFFF;
-    font-size:45px;
-    font-weight:bold;
+    border-radius:15px;
 }
 
 .estado{
-    color:orange;
+    color:#00BFFF;
     font-size:30px;
+    font-weight:bold;
+}
+
+.orden{
+    color:#00ff88;
+    font-size:40px;
     font-weight:bold;
 }
 
 a{
     color:#00BFFF;
     text-decoration:none;
-    font-size:18px;
 }
 
 </style>
@@ -139,23 +126,23 @@ a{
 
 <div class="container">
 
-{% if enviado == False %}
+{% if not enviado %}
 
-<h1>Sistema Inteligente de Soporte Técnico</h1>
+<h1>Soporte Técnico</h1>
 
 <form method="POST" enctype="multipart/form-data">
 
 <input
 type="text"
 name="nombre"
-placeholder="Nombre del cliente"
+placeholder="Nombre"
 required
 >
 
 <input
 type="text"
 name="telefono"
-placeholder="Número de teléfono"
+placeholder="Teléfono"
 required
 >
 
@@ -166,10 +153,7 @@ required
 <option>No enciende</option>
 <option>Pantalla azul</option>
 <option>Muy lenta</option>
-<option>Se apaga sola</option>
 <option>Sin internet</option>
-<option>No hay sonido</option>
-<option>Error de sistema</option>
 <option>Virus</option>
 <option>Otro</option>
 
@@ -186,7 +170,7 @@ required
 <br><br>
 
 <button type="submit">
-Solicitar Soporte Técnico
+Enviar Reporte
 </button>
 
 </form>
@@ -206,7 +190,7 @@ Solicitar Soporte Técnico
 <br><br>
 
 <a href="/consulta">
-Consultar Estado de Reparación
+Consultar Estado
 </a>
 
 </div>
@@ -215,10 +199,6 @@ Consultar Estado de Reparación
 </html>
 
 """
-
-# =====================================
-# CONSULTA HTML
-# =====================================
 
 CONSULTA_HTML = """
 
@@ -229,32 +209,32 @@ CONSULTA_HTML = """
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Consultar Estado</title>
+<title>Consulta</title>
 
 <style>
 
 body{
-    background:#1e1e1e;
+    background:#111827;
     color:white;
     font-family:Arial;
     text-align:center;
-    padding:30px;
+    padding:40px;
 }
 
 .container{
     max-width:500px;
     margin:auto;
-    background:#2b2b2b;
+    background:#1f2937;
     padding:30px;
-    border-radius:10px;
+    border-radius:15px;
 }
 
 input{
     width:90%;
-    padding:12px;
+    padding:14px;
     margin:10px;
     border:none;
-    border-radius:5px;
+    border-radius:8px;
 }
 
 button{
@@ -263,13 +243,13 @@ button{
     border:none;
     padding:15px;
     width:95%;
-    border-radius:5px;
+    border-radius:8px;
 }
 
 .ticket{
-    background:#111827;
-    padding:20px;
-    border-radius:10px;
+    background:#0f172a;
+    padding:25px;
+    border-radius:15px;
     margin-top:20px;
 }
 
@@ -307,9 +287,9 @@ Consultar
 
 """
 
-# =====================================
-# INICIO
-# =====================================
+# =========================================
+# PAGINA PRINCIPAL
+# =========================================
 
 @app.route("/", methods=["GET", "POST"])
 def inicio():
@@ -330,7 +310,7 @@ def inicio():
 
         estado = "PENDIENTE"
 
-        conn = sqlite3.connect(DB)
+        conn = sqlite3.connect("soporte.db")
 
         cursor = conn.cursor()
 
@@ -351,54 +331,39 @@ def inicio():
 
         orden = f"{ticket_id:04d}"
 
-        base_url = request.host_url
-
         texto = f"""
-🔥 NUEVA FALLA REPORTADA
+NUEVA FALLA
 
-📄 ORDEN:
-#{orden}
+ORDEN #{orden}
 
-📌 ESTADO:
-{estado}
+ESTADO: {estado}
 
-👤 CLIENTE:
-{nombre}
+CLIENTE: {nombre}
 
-📞 TELÉFONO:
-{telefono}
+TEL: {telefono}
 
-💻 FALLA:
-{problema}
+FALLA: {problema}
 
-📝 COMENTARIO:
+COMENTARIO:
 {comentario}
-
-====================
 
 CAMBIAR ESTADO:
 
-EN REVISION:
-{base_url}actualizar?ticket={ticket_id}&estado=EN_REVISION
+/actualizar?ticket={ticket_id}&estado=EN_REVISION
 
-REPARANDO:
-{base_url}actualizar?ticket={ticket_id}&estado=REPARANDO
+/actualizar?ticket={ticket_id}&estado=REPARANDO
 
-LISTO:
-{base_url}actualizar?ticket={ticket_id}&estado=LISTO
+/actualizar?ticket={ticket_id}&estado=LISTO
 
-ENTREGADO:
-{base_url}actualizar?ticket={ticket_id}&estado=ENTREGADO
+/actualizar?ticket={ticket_id}&estado=ENTREGADO
 """
 
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
-        data = {
+        requests.post(url, data={
             "chat_id": CHAT_ID,
             "text": texto
-        }
-
-        requests.post(url, data=data)
+        })
 
         # ENVIAR ARCHIVO
 
@@ -406,35 +371,27 @@ ENTREGADO:
 
             url_archivo = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
 
-            files = {
-                "document": (
-                    archivo.filename,
-                    archivo.stream,
-                    archivo.mimetype
-                )
-            }
-
-            data_archivo = {
-                "chat_id": CHAT_ID
-            }
-
             requests.post(
                 url_archivo,
-                data=data_archivo,
-                files=files
+                data={"chat_id": CHAT_ID},
+                files={
+                    "document": (
+                        archivo.filename,
+                        archivo.stream,
+                        archivo.mimetype
+                    )
+                }
             )
 
         mensaje = f"""
 
-        <h2 style='color:#00ff88;'>
-        ✅ REPORTE ENVIADO
+        <h2>
+        REPORTE ENVIADO
         </h2>
 
         <hr>
 
-        <h3>
-        Número de Orden
-        </h3>
+        <h3>Número de Orden</h3>
 
         <div class='orden'>
         #{orden}
@@ -442,9 +399,7 @@ ENTREGADO:
 
         <br>
 
-        <h3>
-        Estado Actual
-        </h3>
+        <h3>Estado</h3>
 
         <div class='estado'>
         {estado}
@@ -458,9 +413,9 @@ ENTREGADO:
         enviado=enviado
     )
 
-# =====================================
-# CONSULTA
-# =====================================
+# =========================================
+# CONSULTAR
+# =========================================
 
 @app.route("/consulta", methods=["GET", "POST"])
 def consulta():
@@ -469,18 +424,16 @@ def consulta():
 
     if request.method == "POST":
 
-        orden = int(request.form["orden"])
+        orden = request.form["orden"]
 
-        conn = sqlite3.connect(DB)
+        conn = sqlite3.connect("soporte.db")
 
         cursor = conn.cursor()
 
-        cursor.execute("""
-
-        SELECT * FROM tickets
-        WHERE id = ?
-
-        """, (orden,))
+        cursor.execute(
+            "SELECT * FROM tickets WHERE id=?",
+            (orden,)
+        )
 
         ticket = cursor.fetchone()
 
@@ -497,7 +450,9 @@ def consulta():
             </h2>
 
             <h1 style='color:#00BFFF;'>
+
             {ticket[5]}
+
             </h1>
 
             </div>
@@ -511,7 +466,7 @@ def consulta():
             <div class='ticket'>
 
             <h2 style='color:red;'>
-            ❌ Orden no encontrada
+            Orden no encontrada
             </h2>
 
             </div>
@@ -523,9 +478,9 @@ def consulta():
         resultado=resultado
     )
 
-# =====================================
+# =========================================
 # ACTUALIZAR ESTADO
-# =====================================
+# =========================================
 
 @app.route("/actualizar")
 def actualizar():
@@ -533,32 +488,26 @@ def actualizar():
     ticket = request.args.get("ticket")
     estado = request.args.get("estado")
 
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect("soporte.db")
 
     cursor = conn.cursor()
 
     cursor.execute("""
 
     UPDATE tickets
-    SET estado = ?
-    WHERE id = ?
+    SET estado=?
+    WHERE id=?
 
     """, (estado, ticket))
 
     conn.commit()
     conn.close()
 
-    return f"""
+    return f"Orden {ticket} actualizada a {estado}"
 
-    <h1>
-    ✅ Orden {int(ticket):04d} actualizada a {estado}
-    </h1>
-
-    """
-
-# =====================================
+# =========================================
 # INICIAR
-# =====================================
+# =========================================
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
