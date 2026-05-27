@@ -3,6 +3,8 @@ import requests
 import sqlite3
 import telebot
 import threading
+import os
+import time
 
 app = Flask(__name__)
 
@@ -148,9 +150,11 @@ required
 >
 
 <input
-type="text"
+type="tel"
 name="telefono"
 placeholder="Teléfono"
+pattern="[0-9]+"
+inputmode="numeric"
 required
 >
 
@@ -317,23 +321,32 @@ def cambiar_estado(message):
 
         cursor = conn.cursor()
 
-        cursor.execute("""
-
-        UPDATE tickets
-        SET estado=?
-        WHERE id=?
-
-        """, (estado, ticket))
-
-        conn.commit()
-        conn.close()
-
-        bot.reply_to(
-            message,
-            f"✅ Orden {ticket} actualizada a {estado}"
+        cursor.execute(
+            "UPDATE tickets SET estado=? WHERE id=?",
+            (estado, ticket)
         )
 
-    except:
+        conn.commit()
+
+        cambios = conn.total_changes
+
+        conn.close()
+
+        if cambios > 0:
+
+            bot.reply_to(
+                message,
+                f"✅ Orden {ticket} actualizada a {estado}"
+            )
+
+        else:
+
+            bot.reply_to(
+                message,
+                "❌ Orden no encontrada"
+            )
+
+    except Exception as e:
 
         bot.reply_to(
             message,
@@ -384,7 +397,7 @@ def inicio():
 
         orden = f"{ticket_id:04d}"
 
-        texto = f"""
+        texto = f'''
 🔥 NUEVA FALLA
 
 📄 ORDEN #{orden}
@@ -397,6 +410,8 @@ def inicio():
 
 📝 {comentario}
 
+==================
+
 CAMBIAR ESTADO:
 
 /estado {ticket_id} EN_REVISION
@@ -406,7 +421,7 @@ CAMBIAR ESTADO:
 /estado {ticket_id} LISTO
 
 /estado {ticket_id} ENTREGADO
-"""
+'''
 
         requests.post(
             f"https://api.telegram.org/bot{TOKEN}/sendMessage",
@@ -416,7 +431,9 @@ CAMBIAR ESTADO:
             }
         )
 
+        # =========================================
         # ENVIAR ARCHIVO
+        # =========================================
 
         if archivo and archivo.filename != "":
 
@@ -532,13 +549,27 @@ def consulta():
 # =========================================
 
 def iniciar_bot():
-    bot.infinity_polling()
 
-threading.Thread(target=iniciar_bot).start()
+    while True:
+
+        try:
+
+            bot.infinity_polling(skip_pending=True)
+
+        except:
+            time.sleep(5)
+
+threading.Thread(target=iniciar_bot, daemon=True).start()
 
 # =========================================
-# INICIAR WEB
+# RENDER
 # =========================================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
