@@ -1,11 +1,19 @@
 from flask import Flask, render_template_string, request
 import requests
 import sqlite3
+import telebot
+import threading
 
 app = Flask(__name__)
 
+# =========================================
+# TELEGRAM
+# =========================================
+
 TOKEN = "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo"
 CHAT_ID = "7736448244"
+
+bot = telebot.TeleBot(TOKEN)
 
 # =========================================
 # BASE DE DATOS
@@ -38,7 +46,7 @@ def crear_db():
 crear_db()
 
 # =========================================
-# HTML
+# HTML PRINCIPAL
 # =========================================
 
 HTML = """
@@ -200,6 +208,10 @@ Consultar Estado
 
 """
 
+# =========================================
+# HTML CONSULTA
+# =========================================
+
 CONSULTA_HTML = """
 
 <!DOCTYPE html>
@@ -288,6 +300,47 @@ Consultar
 """
 
 # =========================================
+# BOT TELEGRAM
+# =========================================
+
+@bot.message_handler(commands=['estado'])
+def cambiar_estado(message):
+
+    try:
+
+        datos = message.text.split()
+
+        ticket = datos[1]
+        estado = datos[2]
+
+        conn = sqlite3.connect("soporte.db")
+
+        cursor = conn.cursor()
+
+        cursor.execute("""
+
+        UPDATE tickets
+        SET estado=?
+        WHERE id=?
+
+        """, (estado, ticket))
+
+        conn.commit()
+        conn.close()
+
+        bot.reply_to(
+            message,
+            f"✅ Orden {ticket} actualizada a {estado}"
+        )
+
+    except:
+
+        bot.reply_to(
+            message,
+            "Use:\n/estado 1 REPARANDO"
+        )
+
+# =========================================
 # PAGINA PRINCIPAL
 # =========================================
 
@@ -332,47 +385,43 @@ def inicio():
         orden = f"{ticket_id:04d}"
 
         texto = f"""
-NUEVA FALLA
+🔥 NUEVA FALLA
 
-ORDEN #{orden}
+📄 ORDEN #{orden}
 
-ESTADO: {estado}
+👤 {nombre}
 
-CLIENTE: {nombre}
+📞 {telefono}
 
-TEL: {telefono}
+💻 {problema}
 
-FALLA: {problema}
-
-COMENTARIO:
-{comentario}
+📝 {comentario}
 
 CAMBIAR ESTADO:
 
-/actualizar?ticket={ticket_id}&estado=EN_REVISION
+/estado {ticket_id} EN_REVISION
 
-/actualizar?ticket={ticket_id}&estado=REPARANDO
+/estado {ticket_id} REPARANDO
 
-/actualizar?ticket={ticket_id}&estado=LISTO
+/estado {ticket_id} LISTO
 
-/actualizar?ticket={ticket_id}&estado=ENTREGADO
+/estado {ticket_id} ENTREGADO
 """
 
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-
-        requests.post(url, data={
-            "chat_id": CHAT_ID,
-            "text": texto
-        })
+        requests.post(
+            f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+            data={
+                "chat_id": CHAT_ID,
+                "text": texto
+            }
+        )
 
         # ENVIAR ARCHIVO
 
         if archivo and archivo.filename != "":
 
-            url_archivo = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
-
             requests.post(
-                url_archivo,
+                f"https://api.telegram.org/bot{TOKEN}/sendDocument",
                 data={"chat_id": CHAT_ID},
                 files={
                     "document": (
@@ -386,7 +435,7 @@ CAMBIAR ESTADO:
         mensaje = f"""
 
         <h2>
-        REPORTE ENVIADO
+        ✅ REPORTE ENVIADO
         </h2>
 
         <hr>
@@ -479,34 +528,16 @@ def consulta():
     )
 
 # =========================================
-# ACTUALIZAR ESTADO
+# INICIAR BOT
 # =========================================
 
-@app.route("/actualizar")
-def actualizar():
+def iniciar_bot():
+    bot.infinity_polling()
 
-    ticket = request.args.get("ticket")
-    estado = request.args.get("estado")
-
-    conn = sqlite3.connect("soporte.db")
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-    UPDATE tickets
-    SET estado=?
-    WHERE id=?
-
-    """, (estado, ticket))
-
-    conn.commit()
-    conn.close()
-
-    return f"Orden {ticket} actualizada a {estado}"
+threading.Thread(target=iniciar_bot).start()
 
 # =========================================
-# INICIAR
+# INICIAR WEB
 # =========================================
 
 if __name__ == "__main__":
