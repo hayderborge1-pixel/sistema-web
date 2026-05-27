@@ -343,6 +343,18 @@ def inicio():
 
         orden = f"{ticket_id:04d}"
 
+        # =====================================
+        # LINK DIRECTO PARA CAMBIAR ESTADO
+        # =====================================
+
+        link_revision = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=EN_REVISION"
+
+        link_reparando = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=REPARANDO"
+
+        link_listo = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=LISTO"
+
+        link_entregado = f"https://sistema-web-90xi.onrender.com/actualizar?ticket={ticket_id}&estado=ENTREGADO"
+
         texto = f"""
 🔥 NUEVA FALLA REPORTADA
 
@@ -364,17 +376,21 @@ def inicio():
 📝 COMENTARIO:
 {comentario}
 
-======================
+====================
 
-CAMBIAR ESTADO MANUAL:
+CAMBIAR ESTADO:
 
-/estado {ticket_id} EN_REVISION
+EN REVISION:
+{link_revision}
 
-/estado {ticket_id} REPARANDO
+REPARANDO:
+{link_reparando}
 
-/estado {ticket_id} LISTO
+LISTO:
+{link_listo}
 
-/estado {ticket_id} ENTREGADO
+ENTREGADO:
+{link_entregado}
 """
 
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -439,6 +455,8 @@ def consulta():
 
         orden = request.form["orden"]
 
+        ticket_id = int(orden)
+
         conn = sqlite3.connect("soporte.db")
 
         cursor = conn.cursor()
@@ -448,7 +466,7 @@ def consulta():
         SELECT * FROM tickets
         WHERE id = ?
 
-        """, (orden,))
+        """, (ticket_id,))
 
         ticket = cursor.fetchone()
 
@@ -492,7 +510,7 @@ def consulta():
     )
 
 # =====================================
-# CAMBIAR ESTADO MANUAL
+# CAMBIAR ESTADO
 # =====================================
 
 @app.route("/actualizar")
@@ -516,7 +534,19 @@ def actualizar():
     conn.commit()
     conn.close()
 
-    return f"Orden {ticket} actualizada a {estado}"
+    return f"""
+
+    <h1>
+    ✅ Orden {int(ticket):04d} actualizada a {estado}
+    </h1>
+
+    <br><br>
+
+    <a href="/consulta">
+    Consultar Estado
+    </a>
+
+    """
 
 # =====================================
 # INICIAR
