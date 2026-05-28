@@ -839,8 +839,133 @@ def inicio():
 # CONSULTAR
 # =========================================
 
-@app.route("/consulta", methods=["GET", "POST"])
-def consulta():
+@app.route("/", methods=["GET", "POST"])
+def inicio():
+
+    mensaje = ""
+    enviado = False
+
+    if request.method == "POST":
+
+        try:
+
+            enviado = True
+
+            nombre = request.form.get("nombre")
+            telefono = request.form.get("telefono")
+            empresa = request.form.get("empresa")
+            sucursal = request.form.get("sucursal")
+            problema = request.form.get("problema")
+            comentario = request.form.get("comentario")
+
+            estado = "PENDIENTE"
+
+            conn = sqlite3.connect("soporte.db")
+            cursor = conn.cursor()
+
+            cursor.execute("""
+
+            INSERT INTO tickets
+            (nombre, telefono, empresa, sucursal, problema, comentario, estado)
+
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+
+            """, (
+                nombre,
+                telefono,
+                empresa,
+                sucursal,
+                problema,
+                comentario,
+                estado
+            ))
+
+            conn.commit()
+
+            ticket_id = cursor.lastrowid
+
+            conn.close()
+
+            orden = f"{ticket_id:04d}"
+
+            texto = f'''
+🔥 NUEVO REPORTE
+
+📄 ORDEN #{orden}
+
+👤 Cliente: {nombre}
+
+🏢 Empresa: {empresa}
+
+📍 Sucursal: {sucursal}
+
+📞 Teléfono: {telefono}
+
+💻 Problema: {problema}
+
+📝 Comentario:
+{comentario}
+'''
+
+            try:
+
+                requests.post(
+                    f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+                    data={
+                        "chat_id": CHAT_ID,
+                        "text": texto
+                    },
+                    timeout=10
+                )
+
+            except Exception as e:
+
+                print("ERROR TELEGRAM:", e)
+
+            mensaje = f"""
+
+            <h2>
+            ✅ REPORTE ENVIADO
+            </h2>
+
+            <hr>
+
+            <h3>Número de Orden</h3>
+
+            <div class='orden'>
+            #{orden}
+            </div>
+
+            <br>
+
+            <h3>Estado</h3>
+
+            <div class='estado'>
+            {estado}
+            </div>
+
+            """
+
+        except Exception as e:
+
+            mensaje = f"""
+
+            <div style='color:red;'>
+
+            ERROR:
+            <br><br>
+
+            {str(e)}
+
+            </div>
+
+            """
+
+    return render_template_string(
+        HTML,
+        mensaje=mensaje,
+        enviado=enviado
+    )
 
     resultado = ""
 
