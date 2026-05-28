@@ -5,25 +5,53 @@ import telebot
 import threading
 import os
 import time
+from datetime import datetime
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = "Hayder2026_Soporte_Privado"
 
 # =========================================
-# TELEGRAM
+# CONFIGURACIÓN SEGURA
 # =========================================
 
-TOKEN = "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo"
-CHAT_ID = "7736448244"
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "Hayder2026_Soporte_Privado"
+)
 
-bot = telebot.TeleBot(TOKEN)
+TOKEN = os.environ.get( "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo")
+CHAT_ID = os.environ.get("7736448244")
 
+bot = telebot.TeleBot("8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo")
 # =========================================
 # LOGIN ADMIN
 # =========================================
 
-ADMIN_USER = "admin"
-ADMIN_PASS = "1234"
+ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
+ADMIN_PASS = os.environ.get("ADMIN_PASS", "1234")
+
+# =========================================
+# CARPETA ARCHIVOS
+# =========================================
+
+UPLOAD_FOLDER = "uploads"
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# =========================================
+# HORARIOS DISPONIBLES
+# =========================================
+
+HORARIOS = [
+    "09:00",
+    "10:00",
+    "11:00",
+    "12:00",
+    "13:00",
+    "14:00",
+    "15:00"
+]
 
 # =========================================
 # BASE DE DATOS
@@ -35,23 +63,22 @@ def crear_db():
     cursor = conn.cursor()
 
     cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tickets (
 
-CREATE TABLE IF NOT EXISTS tickets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa TEXT,
+        sucursal TEXT,
+        nombre TEXT,
+        telefono TEXT,
+        problema TEXT,
+        comentario TEXT,
+        estado TEXT,
+        fecha_visita TEXT,
+        hora_visita TEXT,
+        archivo TEXT
 
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT,
-    telefono TEXT,
-    empresa TEXT,
-    sucursal TEXT,
-    problema TEXT,
-    comentario TEXT,
-    estado TEXT,
-    fecha_visita TEXT,
-    tecnico TEXT
-
-)
-
-""")
+    )
+    """)
 
     conn.commit()
     conn.close()
@@ -66,7 +93,6 @@ HTML = """
 
 <!DOCTYPE html>
 <html>
-
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -84,7 +110,7 @@ body{
 }
 
 .container{
-    max-width:500px;
+    max-width:550px;
     margin:auto;
     background:#1f2937;
     padding:30px;
@@ -139,6 +165,11 @@ a{
     text-decoration:none;
 }
 
+.error{
+    color:red;
+    font-weight:bold;
+}
+
 </style>
 
 </head>
@@ -153,26 +184,11 @@ a{
 
 <form method="POST" enctype="multipart/form-data">
 
-<input
-type="text"
-name="empresa"
-placeholder="Nombre de la empresa"
-required
->
+<input type="text" name="empresa" placeholder="Nombre de la empresa" required>
 
-<input
-type="text"
-name="sucursal"
-placeholder="Sucursal"
-required
->
+<input type="text" name="sucursal" placeholder="Sucursal" required>
 
-<input
-type="text"
-name="nombre"
-placeholder="Nombre del cliente"
-required
->
+<input type="text" name="nombre" placeholder="Nombre del cliente" required>
 
 <input
 type="text"
@@ -202,6 +218,20 @@ placeholder="Describa el problema"
 required
 ></textarea>
 
+<h3>Agendar Visita</h3>
+
+<input type="date" name="fecha_visita" required>
+
+<select name="hora_visita" required>
+
+<option value="">Seleccione horario</option>
+
+{% for h in horarios %}
+<option value="{{ h }}">{{ h }}</option>
+{% endfor %}
+
+</select>
+
 <input type="file" name="archivo">
 
 <br><br>
@@ -226,15 +256,11 @@ Enviar Reporte
 
 <br><br>
 
-<a href="/consulta">
-Consultar Estado
-</a>
+<a href="/consulta">Consultar Estado</a>
 
 <br><br>
 
-<a href="/login">
-Panel Técnico
-</a>
+<a href="/login">Panel Técnico</a>
 
 </div>
 
@@ -306,15 +332,11 @@ button{
 
 <input type="password" name="password" placeholder="Contraseña" required>
 
-<button type="submit">
-Ingresar
-</button>
+<button type="submit">Ingresar</button>
 
 </form>
 
-<p style="color:red;">
-{{ error }}
-</p>
+<p style="color:red;">{{ error }}</p>
 
 </div>
 
@@ -384,48 +406,22 @@ button{
 <h2>Orden #{{ '%04d' % t[0] }}</h2>
 
 <p><b>Empresa:</b> {{ t[1] }}</p>
-
 <p><b>Sucursal:</b> {{ t[2] }}</p>
-
 <p><b>Cliente:</b> {{ t[3] }}</p>
-
 <p><b>Teléfono:</b> {{ t[4] }}</p>
-
 <p><b>Problema:</b> {{ t[5] }}</p>
-
 <p><b>Comentario:</b> {{ t[6] }}</p>
-
 <p><b>Estado:</b> {{ t[7] }}</p>
-
 <p><b>Fecha visita:</b> {{ t[8] }}</p>
-
 <p><b>Hora visita:</b> {{ t[9] }}</p>
+
+{% if t[10] %}
+<p><b>Archivo:</b> {{ t[10] }}</p>
+{% endif %}
 
 <form method="POST" action="/actualizar">
 
 <input type="hidden" name="id" value="{{ t[0] }}">
-
-<br>
-
-<label>Fecha visita</label><br>
-
-<input
-type="date"
-name="fecha_visita"
-required
->
-
-<br><br>
-
-<label>Hora visita</label><br>
-
-<input
-type="time"
-name="hora_visita"
-required
->
-
-<br><br>
 
 <select name="estado">
 
@@ -460,7 +456,6 @@ CONSULTA_HTML = """
 
 <!DOCTYPE html>
 <html>
-
 <head>
 
 <title>Consulta</title>
@@ -585,13 +580,10 @@ def panel():
 
     conn.close()
 
-    return render_template_string(
-        PANEL_HTML,
-        tickets=tickets
-    )
+    return render_template_string(PANEL_HTML, tickets=tickets)
 
 # =========================================
-# ACTUALIZAR
+# ACTUALIZAR ESTADO
 # =========================================
 
 @app.route("/actualizar", methods=["POST"])
@@ -603,33 +595,12 @@ def actualizar():
     ticket_id = request.form["id"]
     estado = request.form["estado"]
 
-    fecha_visita = request.form["fecha_visita"]
-    hora_visita = request.form["hora_visita"]
-
     conn = sqlite3.connect("soporte.db")
     cursor = conn.cursor()
 
     cursor.execute(
-        """
-
-        UPDATE tickets
-
-        SET
-
-        estado=?,
-        fecha_visita=?,
-        hora_visita=?
-
-        WHERE id=?
-
-        """,
-
-        (
-            estado,
-            fecha_visita,
-            hora_visita,
-            ticket_id
-        )
+        "UPDATE tickets SET estado=? WHERE id=?",
+        (estado, ticket_id)
     )
 
     conn.commit()
@@ -659,11 +630,18 @@ def cambiar_estado(message):
 
         datos = message.text.split()
 
+        if len(datos) < 3:
+
+            bot.reply_to(
+                message,
+                "Use:\n/estado 1 REPARANDO"
+            )
+            return
+
         ticket = int(datos[1])
         estado = datos[2]
 
         conn = sqlite3.connect("soporte.db")
-
         cursor = conn.cursor()
 
         cursor.execute(
@@ -679,11 +657,11 @@ def cambiar_estado(message):
             f"✅ Orden {ticket} actualizada"
         )
 
-    except:
+    except Exception as e:
 
         bot.reply_to(
             message,
-            "Use:\n/estado 1 REPARANDO"
+            f"ERROR: {str(e)}"
         )
 
 # =========================================
@@ -698,181 +676,141 @@ def inicio():
 
     if request.method == "POST":
 
-        enviado = True
-
-        empresa = request.form["empresa"]
-        sucursal = request.form["sucursal"]
-
-        nombre = request.form["nombre"]
-        telefono = request.form["telefono"]
-
-        problema = request.form["problema"]
-        comentario = request.form["comentario"]
-
-        archivo = request.files.get("archivo")
-
-        estado = "PENDIENTE"
-
-        conn = sqlite3.connect("soporte.db")
-
-        cursor = conn.cursor()
-
-        cursor.execute("""
-
-        INSERT INTO tickets
-        (
-            empresa,
-            sucursal,
-            nombre,
-            telefono,
-            problema,
-            comentario,
-            estado,
-            fecha_visita,
-            hora_visita
-        )
-
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-
-        """, (
-
-            empresa,
-            sucursal,
-
-            nombre,
-            telefono,
-
-            problema,
-            comentario,
-
-            estado,
-
-            "",
-            ""
-
-        ))
-
-        conn.commit()
-
-        ticket_id = cursor.lastrowid
-
-        conn.close()
-
-        orden = f"{ticket_id:04d}"
-
-        texto = f'''
-🔥 NUEVA FALLA
-
-📄 ORDEN #{orden}
-
-🏢 Empresa: {empresa}
-
-🏬 Sucursal: {sucursal}
-
-👤 Cliente: {nombre}
-
-📞 {telefono}
-
-💻 {problema}
-
-📝 {comentario}
-'''
-
-        requests.post(
-            f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-            data={
-                "chat_id": CHAT_ID,
-                "text": texto
-            }
-        )
-
-        if archivo and archivo.filename != "":
-
-            requests.post(
-                f"https://api.telegram.org/bot{TOKEN}/sendDocument",
-                data={"chat_id": CHAT_ID},
-                files={
-                    "document": (
-                        archivo.filename,
-                        archivo.stream,
-                        archivo.mimetype
-                    )
-                }
-            )
-
-        mensaje = f"""
-
-        <h2>
-        ✅ REPORTE ENVIADO
-        </h2>
-
-        <hr>
-
-        <h3>Número de Orden</h3>
-
-        <div class='orden'>
-        #{orden}
-        </div>
-
-        <br>
-
-        <h3>Estado</h3>
-
-        <div class='estado'>
-        {estado}
-        </div>
-
-        """
-
-    return render_template_string(
-        HTML,
-        mensaje=mensaje,
-        enviado=enviado
-    )
-
-# =========================================
-# CONSULTAR
-# =========================================
-
-@app.route("/", methods=["GET", "POST"])
-def inicio():
-
-    mensaje = ""
-    enviado = False
-
-    if request.method == "POST":
-
         try:
 
-            enviado = True
+            empresa = request.form["empresa"].strip()
+            sucursal = request.form["sucursal"].strip()
+            nombre = request.form["nombre"].strip()
+            telefono = request.form["telefono"].strip()
+            problema = request.form["problema"].strip()
+            comentario = request.form["comentario"].strip()
+            fecha_visita = request.form["fecha_visita"]
+            hora_visita = request.form["hora_visita"]
 
-            nombre = request.form.get("nombre")
-            telefono = request.form.get("telefono")
-            empresa = request.form.get("empresa")
-            sucursal = request.form.get("sucursal")
-            problema = request.form.get("problema")
-            comentario = request.form.get("comentario")
+            # VALIDAR TELÉFONO
+            if len(telefono) != 8:
 
-            estado = "PENDIENTE"
+                mensaje = """
+                <div class='error'>
+                El teléfono debe tener 8 números
+                </div>
+                """
+
+                return render_template_string(
+                    HTML,
+                    mensaje=mensaje,
+                    enviado=False,
+                    horarios=HORARIOS
+                )
+
+            # VALIDAR LUNES A VIERNES
+            fecha_obj = datetime.strptime(
+                fecha_visita,
+                "%Y-%m-%d"
+            )
+
+            if fecha_obj.weekday() >= 5:
+
+                mensaje = """
+                <div class='error'>
+                Solo se permiten citas de lunes a viernes
+                </div>
+                """
+
+                return render_template_string(
+                    HTML,
+                    mensaje=mensaje,
+                    enviado=False,
+                    horarios=HORARIOS
+                )
+
+            # GUARDAR ARCHIVO
+            archivo_nombre = ""
+
+            archivo = request.files.get("archivo")
+
+            if archivo and archivo.filename != "":
+
+                nombre_seguro = secure_filename(
+                    archivo.filename
+                )
+
+                archivo_nombre = (
+                    f"{int(time.time())}_{nombre_seguro}"
+                )
+
+                ruta = os.path.join(
+                    UPLOAD_FOLDER,
+                    archivo_nombre
+                )
+
+                archivo.save(ruta)
 
             conn = sqlite3.connect("soporte.db")
             cursor = conn.cursor()
 
+            # VALIDAR CITA DUPLICADA
+            cursor.execute("""
+
+            SELECT * FROM tickets
+            WHERE fecha_visita=?
+            AND hora_visita=?
+
+            """, (
+                fecha_visita,
+                hora_visita
+            ))
+
+            cita = cursor.fetchone()
+
+            if cita:
+
+                conn.close()
+
+                mensaje = """
+                <div class='error'>
+                Ese horario ya está ocupado
+                </div>
+                """
+
+                return render_template_string(
+                    HTML,
+                    mensaje=mensaje,
+                    enviado=False,
+                    horarios=HORARIOS
+                )
+
+            estado = "PENDIENTE"
+
             cursor.execute("""
 
             INSERT INTO tickets
-            (nombre, telefono, empresa, sucursal, problema, comentario, estado)
-
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-
-            """, (
-                nombre,
-                telefono,
+            (
                 empresa,
                 sucursal,
+                nombre,
+                telefono,
                 problema,
                 comentario,
-                estado
+                estado,
+                fecha_visita,
+                hora_visita,
+                archivo
+            )
+
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+            """, (
+                empresa,
+                sucursal,
+                nombre,
+                telefono,
+                problema,
+                comentario,
+                estado,
+                fecha_visita,
+                hora_visita,
+                archivo_nombre
             ))
 
             conn.commit()
@@ -883,24 +821,26 @@ def inicio():
 
             orden = f"{ticket_id:04d}"
 
-            texto = f'''
-🔥 NUEVO REPORTE
+            texto = f"""
+🔥 NUEVA CITA
 
 📄 ORDEN #{orden}
 
-👤 Cliente: {nombre}
-
 🏢 Empresa: {empresa}
+🏬 Sucursal: {sucursal}
 
-📍 Sucursal: {sucursal}
-
-📞 Teléfono: {telefono}
+👤 Cliente: {nombre}
+📞 {telefono}
 
 💻 Problema: {problema}
 
-📝 Comentario:
-{comentario}
-'''
+📅 Fecha: {fecha_visita}
+⏰ Hora: {hora_visita}
+
+📝 {comentario}
+
+📌 Estado: {estado}
+"""
 
             try:
 
@@ -913,14 +853,13 @@ def inicio():
                     timeout=10
                 )
 
-            except Exception as e:
-
-                print("ERROR TELEGRAM:", e)
+            except:
+                pass
 
             mensaje = f"""
 
             <h2>
-            ✅ REPORTE ENVIADO
+            ✅ CITA AGENDADA
             </h2>
 
             <hr>
@@ -933,6 +872,22 @@ def inicio():
 
             <br>
 
+            <h3>Fecha</h3>
+
+            <div class='estado'>
+            {fecha_visita}
+            </div>
+
+            <br>
+
+            <h3>Hora</h3>
+
+            <div class='estado'>
+            {hora_visita}
+            </div>
+
+            <br>
+
             <h3>Estado</h3>
 
             <div class='estado'>
@@ -941,26 +896,31 @@ def inicio():
 
             """
 
+            enviado = True
+
         except Exception as e:
 
             mensaje = f"""
-
-            <div style='color:red;'>
-
+            <div class='error'>
             ERROR:
             <br><br>
-
             {str(e)}
-
             </div>
-
             """
 
     return render_template_string(
         HTML,
         mensaje=mensaje,
-        enviado=enviado
+        enviado=enviado,
+        horarios=HORARIOS
     )
+
+# =========================================
+# CONSULTAR ESTADO
+# =========================================
+
+@app.route("/consulta", methods=["GET", "POST"])
+def consulta():
 
     resultado = ""
 
@@ -969,7 +929,6 @@ def inicio():
         orden = request.form["orden"]
 
         conn = sqlite3.connect("soporte.db")
-
         cursor = conn.cursor()
 
         cursor.execute(
@@ -992,9 +951,7 @@ def inicio():
             </h2>
 
             <h1 style='color:#00BFFF;'>
-
             {ticket[7]}
-
             </h1>
 
             <p>
@@ -1037,23 +994,31 @@ def iniciar_bot():
     while True:
 
         try:
-
             bot.infinity_polling(skip_pending=True)
 
-        except:
+        except Exception as e:
+
+            print("ERROR BOT:", e)
+
             time.sleep(5)
 
-threading.Thread(target=iniciar_bot, daemon=True).start()
+threading.Thread(
+    target=iniciar_bot,
+    daemon=True
+).start()
 
 # =========================================
-# RENDER
+# INICIAR APP
 # =========================================
 
 if __name__ == "__main__":
 
-    port = int(os.environ.get("PORT", 5000))
+    port = int(
+        os.environ.get("PORT", 5000)
+    )
 
     app.run(
         host="0.0.0.0",
-        port=port
+        port=port,
+        debug=True
     )
