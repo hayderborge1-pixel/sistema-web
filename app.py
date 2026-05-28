@@ -36,27 +36,22 @@ def crear_db():
 
     cursor.execute("""
 
-    CREATE TABLE IF NOT EXISTS tickets (
+CREATE TABLE IF NOT EXISTS tickets (
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT,
+    telefono TEXT,
+    empresa TEXT,
+    sucursal TEXT,
+    problema TEXT,
+    comentario TEXT,
+    estado TEXT,
+    fecha_visita TEXT,
+    tecnico TEXT
 
-        empresa TEXT,
-        sucursal TEXT,
+)
 
-        nombre TEXT,
-        telefono TEXT,
-
-        problema TEXT,
-        comentario TEXT,
-
-        estado TEXT,
-
-        fecha_visita TEXT,
-        hora_visita TEXT
-
-    )
-
-    """)
+""")
 
     conn.commit()
     conn.close()
