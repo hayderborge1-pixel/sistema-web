@@ -7,7 +7,7 @@ import os
 import time
 
 app = Flask(__name__)
-app.secret_key = "soporte123"
+app.secret_key = "Hayder2026_Soporte_Privado"
 
 # =========================================
 # TELEGRAM
@@ -32,7 +32,6 @@ ADMIN_PASS = "1234"
 def crear_db():
 
     conn = sqlite3.connect("soporte.db")
-
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -40,11 +39,20 @@ def crear_db():
     CREATE TABLE IF NOT EXISTS tickets (
 
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        empresa TEXT,
+        sucursal TEXT,
+
         nombre TEXT,
         telefono TEXT,
+
         problema TEXT,
         comentario TEXT,
-        estado TEXT
+
+        estado TEXT,
+
+        fecha_visita TEXT,
+        hora_visita TEXT
 
     )
 
@@ -152,8 +160,22 @@ a{
 
 <input
 type="text"
+name="empresa"
+placeholder="Nombre de la empresa"
+required
+>
+
+<input
+type="text"
+name="sucursal"
+placeholder="Sucursal"
+required
+>
+
+<input
+type="text"
 name="nombre"
-placeholder="Nombre"
+placeholder="Nombre del cliente"
 required
 >
 
@@ -334,9 +356,10 @@ body{
     border-radius:15px;
 }
 
-select{
+select,input{
     padding:10px;
     border-radius:8px;
+    margin:5px;
 }
 
 button{
@@ -365,19 +388,49 @@ button{
 
 <h2>Orden #{{ '%04d' % t[0] }}</h2>
 
-<p><b>Cliente:</b> {{ t[1] }}</p>
+<p><b>Empresa:</b> {{ t[1] }}</p>
 
-<p><b>Teléfono:</b> {{ t[2] }}</p>
+<p><b>Sucursal:</b> {{ t[2] }}</p>
 
-<p><b>Problema:</b> {{ t[3] }}</p>
+<p><b>Cliente:</b> {{ t[3] }}</p>
 
-<p><b>Comentario:</b> {{ t[4] }}</p>
+<p><b>Teléfono:</b> {{ t[4] }}</p>
 
-<p><b>Estado:</b> {{ t[5] }}</p>
+<p><b>Problema:</b> {{ t[5] }}</p>
+
+<p><b>Comentario:</b> {{ t[6] }}</p>
+
+<p><b>Estado:</b> {{ t[7] }}</p>
+
+<p><b>Fecha visita:</b> {{ t[8] }}</p>
+
+<p><b>Hora visita:</b> {{ t[9] }}</p>
 
 <form method="POST" action="/actualizar">
 
 <input type="hidden" name="id" value="{{ t[0] }}">
+
+<br>
+
+<label>Fecha visita</label><br>
+
+<input
+type="date"
+name="fecha_visita"
+required
+>
+
+<br><br>
+
+<label>Hora visita</label><br>
+
+<input
+type="time"
+name="hora_visita"
+required
+>
+
+<br><br>
 
 <select name="estado">
 
@@ -543,7 +596,7 @@ def panel():
     )
 
 # =========================================
-# ACTUALIZAR ESTADO
+# ACTUALIZAR
 # =========================================
 
 @app.route("/actualizar", methods=["POST"])
@@ -555,12 +608,33 @@ def actualizar():
     ticket_id = request.form["id"]
     estado = request.form["estado"]
 
+    fecha_visita = request.form["fecha_visita"]
+    hora_visita = request.form["hora_visita"]
+
     conn = sqlite3.connect("soporte.db")
     cursor = conn.cursor()
 
     cursor.execute(
-        "UPDATE tickets SET estado=? WHERE id=?",
-        (estado, ticket_id)
+        """
+
+        UPDATE tickets
+
+        SET
+
+        estado=?,
+        fecha_visita=?,
+        hora_visita=?
+
+        WHERE id=?
+
+        """,
+
+        (
+            estado,
+            fecha_visita,
+            hora_visita,
+            ticket_id
+        )
     )
 
     conn.commit()
@@ -631,8 +705,12 @@ def inicio():
 
         enviado = True
 
+        empresa = request.form["empresa"]
+        sucursal = request.form["sucursal"]
+
         nombre = request.form["nombre"]
         telefono = request.form["telefono"]
+
         problema = request.form["problema"]
         comentario = request.form["comentario"]
 
@@ -647,11 +725,37 @@ def inicio():
         cursor.execute("""
 
         INSERT INTO tickets
-        (nombre, telefono, problema, comentario, estado)
+        (
+            empresa,
+            sucursal,
+            nombre,
+            telefono,
+            problema,
+            comentario,
+            estado,
+            fecha_visita,
+            hora_visita
+        )
 
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
-        """, (nombre, telefono, problema, comentario, estado))
+        """, (
+
+            empresa,
+            sucursal,
+
+            nombre,
+            telefono,
+
+            problema,
+            comentario,
+
+            estado,
+
+            "",
+            ""
+
+        ))
 
         conn.commit()
 
@@ -666,7 +770,11 @@ def inicio():
 
 📄 ORDEN #{orden}
 
-👤 {nombre}
+🏢 Empresa: {empresa}
+
+🏬 Sucursal: {sucursal}
+
+👤 Cliente: {nombre}
 
 📞 {telefono}
 
@@ -765,9 +873,17 @@ def consulta():
 
             <h1 style='color:#00BFFF;'>
 
-            {ticket[5]}
+            {ticket[7]}
 
             </h1>
+
+            <p>
+            Fecha visita: {ticket[8]}
+            </p>
+
+            <p>
+            Hora visita: {ticket[9]}
+            </p>
 
             </div>
 
