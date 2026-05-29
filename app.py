@@ -667,6 +667,7 @@ def cambiar_estado(message):
             message,
             f"ERROR: {str(e)}"
         )
+id="9u5m6l"
 # =========================================
 # PAGINA PRINCIPAL
 # =========================================
@@ -681,128 +682,34 @@ def inicio():
 
         try:
 
-            empresa = request.form["empresa"].strip()
-            sucursal = request.form["sucursal"].strip()
-            nombre = request.form["nombre"].strip()
-            telefono = request.form["telefono"].strip()
-            problema = request.form["problema"].strip()
-            comentario = request.form["comentario"].strip()
+            empresa = request.form["empresa"]
+            sucursal = request.form["sucursal"]
+            nombre = request.form["nombre"]
+            telefono = request.form["telefono"]
+            problema = request.form["problema"]
+            comentario = request.form["comentario"]
             fecha_visita = request.form["fecha_visita"]
             hora_visita = request.form["hora_visita"]
 
-            # VALIDAR TELÉFONO
-            if len(telefono) != 8:
-
-                mensaje = """
-                <div class='error'>
-                El teléfono debe tener 8 números
-                </div>
-                """
-
-                return render_template_string(
-                    HTML,
-                    mensaje=mensaje,
-                    enviado=False,
-                    horarios=HORARIOS
-                )
-
-            # VALIDAR LUNES A VIERNES
-            fecha_obj = datetime.strptime(
-                fecha_visita,
-                "%Y-%m-%d"
-            )
-
-            if fecha_obj.weekday() >= 5:
-
-                mensaje = """
-                <div class='error'>
-                Solo se permiten citas de lunes a viernes
-                </div>
-                """
-
-                return render_template_string(
-                    HTML,
-                    mensaje=mensaje,
-                    enviado=False,
-                    horarios=HORARIOS
-                )
-
-            # GUARDAR ARCHIVO
-            archivo_nombre = ""
-
-            archivo = request.files.get("archivo")
-
-            if archivo and archivo.filename != "":
-
-                nombre_seguro = secure_filename(
-                    archivo.filename
-                )
-
-                archivo_nombre = (
-                    f"{int(time.time())}_{nombre_seguro}"
-                )
-
-                ruta = os.path.join(
-                    UPLOAD_FOLDER,
-                    archivo_nombre
-                )
-
-                archivo.save(ruta)
+            estado = "PENDIENTE"
 
             conn = sqlite3.connect("soporte.db")
             cursor = conn.cursor()
 
-            # VALIDAR CITA DUPLICADA
             cursor.execute("""
-
-            SELECT * FROM tickets
-            WHERE fecha_visita=?
-            AND hora_visita=?
-
-            """, (
-                fecha_visita,
-                hora_visita
-            ))
-
-            cita = cursor.fetchone()
-
-            if cita:
-
-                conn.close()
-
-                mensaje = """
-                <div class='error'>
-                Ese horario ya está ocupado
-                </div>
-                """
-
-                return render_template_string(
-                    HTML,
-                    mensaje=mensaje,
-                    enviado=False,
-                    horarios=HORARIOS
+                INSERT INTO tickets (
+                    empresa,
+                    sucursal,
+                    nombre,
+                    telefono,
+                    problema,
+                    comentario,
+                    estado,
+                    fecha_visita,
+                    hora_visita,
+                    archivo
                 )
-
-            estado = "PENDIENTE"
-
-            cursor.execute("""
-
-            INSERT INTO tickets
-            (
-                empresa,
-                sucursal,
-                nombre,
-                telefono,
-                problema,
-                comentario,
-                estado,
-                fecha_visita,
-                hora_visita,
-                archivo
-            )
-
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 empresa,
                 sucursal,
@@ -813,7 +720,7 @@ def inicio():
                 estado,
                 fecha_visita,
                 hora_visita,
-                archivo_nombre
+                ""
             ))
 
             conn.commit()
@@ -824,79 +731,10 @@ def inicio():
 
             orden = f"{ticket_id:04d}"
 
-            texto = f"""
-🔥 NUEVA CITA
-
-📄 ORDEN #{orden}
-
-🏢 Empresa: {empresa}
-🏬 Sucursal: {sucursal}
-
-👤 Cliente: {nombre}
-📞 {telefono}
-
-💻 Problema: {problema}
-
-📅 Fecha: {fecha_visita}
-⏰ Hora: {hora_visita}
-
-📝 {comentario}
-
-📌 Estado: {estado}
-"""
-
-            try:
-
-                requests.post(
-                    f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-                    data={
-                        "chat_id": CHAT_ID,
-                        "text": texto
-                    },
-                    timeout=10
-                )
-
-            except:
-                pass
-
             mensaje = f"""
-
-            <h2>
-            ✅ CITA AGENDADA
-            </h2>
-
-            <hr>
-
-            <h3>Número de Orden</h3>
-
-            <div class='orden'>
-            #{orden}
-            </div>
-
-            <br>
-
-            <h3>Fecha</h3>
-
-            <div class='estado'>
-            {fecha_visita}
-            </div>
-
-            <br>
-
-            <h3>Hora</h3>
-
-            <div class='estado'>
-            {hora_visita}
-            </div>
-
-            <br>
-
-            <h3>Estado</h3>
-
-            <div class='estado'>
-            {estado}
-            </div>
-
+            <h2>✅ CITA AGENDADA</h2>
+            <h3>Orden #{orden}</h3>
+            <h3>Estado: {estado}</h3>
             """
 
             enviado = True
@@ -905,9 +743,7 @@ def inicio():
 
             mensaje = f"""
             <div class='error'>
-            ERROR:
-            <br><br>
-            {str(e)}
+            ERROR: {str(e)}
             </div>
             """
 
