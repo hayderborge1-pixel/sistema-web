@@ -19,10 +19,14 @@ app.secret_key = os.environ.get(
     "Hayder2026_Soporte_Privado"
 )
 
-TOKEN = os.environ.get( "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo")
-CHAT_ID = os.environ.get("7736448244")
+# =========================================
+# TELEGRAM
+# =========================================
 
-bot = telebot.TeleBot("8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo")
+TOKEN = "8455169869:AAGblAeDhz58yK2kFUicH2fNxahEzxxhzPo"
+CHAT_ID = "7736448244"
+
+bot = telebot.TeleBot(TOKEN)
 # =========================================
 # LOGIN ADMIN
 # =========================================
