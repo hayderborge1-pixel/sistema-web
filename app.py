@@ -671,7 +671,19 @@ def cambiar_estado(message):
 # =========================================
 # PAGINA PRINCIPAL
 # =========================================
+# =========================================
+# PAGINA PRINCIPAL
+# =========================================
 
+@app.route("/", methods=["GET", "POST"])
+def inicio():
+
+    return render_template_string(
+        HTML,
+        mensaje="",
+        enviado=False,
+        horarios=HORARIOS
+    )
     mensaje = ""
     enviado = False
 
@@ -999,4 +1011,4 @@ if __name__ == "__main__":
         port=port
 
         # fix render deploy
-    )
+    )           
