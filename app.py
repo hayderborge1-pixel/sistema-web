@@ -986,28 +986,6 @@ def consulta():
     )
 
 # =========================================
-# INICIAR BOT
-# =========================================
-
-def iniciar_bot():
-
-    while True:
-
-        try:
-            bot.infinity_polling(skip_pending=True)
-
-        except Exception as e:
-
-            print("ERROR BOT:", e)
-
-            time.sleep(5)
-
-threading.Thread(
-    target=iniciar_bot,
-    daemon=True
-).start()
-
-# =========================================
 # INICIAR APP
 # =========================================
 
@@ -1018,7 +996,6 @@ if __name__ == "__main__":
     )
 
     app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=True
-    )
+    host="0.0.0.0",
+    port=port
+)
