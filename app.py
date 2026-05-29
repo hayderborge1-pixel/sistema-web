@@ -929,6 +929,20 @@ def inicio():
     )
 
 # =========================================
+# PAGINA PRINCIPAL
+# =========================================
+
+@app.route("/", methods=["GET", "POST"])
+def inicio():
+
+    return render_template_string(
+        HTML,
+        mensaje="",
+        enviado=False,
+        horarios=HORARIOS
+    )
+
+# =========================================
 # CONSULTAR ESTADO
 # =========================================
 
@@ -1009,6 +1023,4 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port
-
-        # fix render deploy
-    )           
+    )
