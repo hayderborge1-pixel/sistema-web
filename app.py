@@ -672,9 +672,6 @@ def cambiar_estado(message):
 # PAGINA PRINCIPAL
 # =========================================
 
-@app.route("/", methods=["GET", "POST"])
-def inicio():
-
     mensaje = ""
     enviado = False
 
