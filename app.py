@@ -667,10 +667,6 @@ def cambiar_estado(message):
             message,
             f"ERROR: {str(e)}"
         )
-
-# =========================================
-# PAGINA PRINCIPAL
-# =========================================
 # =========================================
 # PAGINA PRINCIPAL
 # =========================================
@@ -678,12 +674,6 @@ def cambiar_estado(message):
 @app.route("/", methods=["GET", "POST"])
 def inicio():
 
-    return render_template_string(
-        HTML,
-        mensaje="",
-        enviado=False,
-        horarios=HORARIOS
-    )
     mensaje = ""
     enviado = False
 
@@ -925,20 +915,6 @@ def inicio():
         HTML,
         mensaje=mensaje,
         enviado=enviado,
-        horarios=HORARIOS
-    )
-
-# =========================================
-# PAGINA PRINCIPAL
-# =========================================
-
-@app.route("/", methods=["GET", "POST"])
-def inicio():
-
-    return render_template_string(
-        HTML,
-        mensaje="",
-        enviado=False,
         horarios=HORARIOS
     )
 
